@@ -199,9 +199,9 @@
   <!-- ROW 2: Environment TTP Hits -->
   <row>
     <panel>
-      <title>OTX Threat Intel Hits - TTPs Active in Your Environment</title>
+      <title>OTX Threat Intel - TTPs Active in Your Environment</title>
       <table>
-        <search>
+        <search>         
           <query>
             index=sysmon
             | eval technique_id=case(
@@ -224,17 +224,14 @@
             | where isnotnull(pulse_count)
             | stats count as sysmon_hits max(_time) as last_seen first(pulse_names) as pulse_names first(actors) as actors by technique_id
             | eval last_seen=strftime(last_seen,"%Y-%m-%d %H:%M"),
-                   pulse_names=substr(pulse_names,1,50)."...",
-                   severity=case(sysmon_hits&gt;200,"Critical",sysmon_hits&gt;50,"High",sysmon_hits&gt;10,"Medium",true(),"Low"),
-                   _sev_sort=case(severity="Critical","1",severity="High","2",severity="Medium","3",true(),"4")
-            | sort _sev_sort - sysmon_hits
-            | fields - _sev_sort
+                   pulse_names=substr(pulse_names,1,50)."..."
+            | sort - sysmon_hits
             | rename technique_id as "Technique ID"
-                     sysmon_hits  as "Environment Hits"
                      last_seen    as "Last Seen"
+                     sysmon_hits  as "Environment Hits"
                      pulse_names  as "OTX Pulse"
                      actors       as "Threat Actor"
-                     severity     as "Severity"
+            | table "Technique ID" "Last Seen" "Environment Hits" "OTX Pulse" "Threat Actor"
           </query>
           <earliest>$time_range.earliest$</earliest>
           <latest>$time_range.latest$</latest>
@@ -242,12 +239,6 @@
         <option name="drilldown">row</option>
         <option name="refresh.display">progressbar</option>
         <option name="wrap">true</option>
-        <format type="color" field="Severity">
-          <colorPalette type="map">{"Critical": 0xDC4E41, "High": 0xF1813F, "Medium": 0xF8BE34, "Low": 0x53A051}</colorPalette>
-        </format>
-        <format type="color" field="Environment Hits">
-          <colorPalette type="minMidMax" maxColor="0xDC4E41" midColor="0xF8BE34" minColor="0x53A051"></colorPalette>
-        </format>
       </table>
     </panel>
   </row>
@@ -316,6 +307,7 @@
                      unique_ips     as "Unique IPs"
                      affected_hosts as "Affected Hosts"
                      severity       as "Severity"
+            | table "Country" "Severity" "Hits" "Unique IPs" "Affected Hosts"
           </query>
           <earliest>$time_range.earliest$</earliest>
           <latest>$time_range.latest$</latest>
@@ -324,9 +316,6 @@
         <option name="refresh.display">progressbar</option>
         <format type="color" field="Severity">
           <colorPalette type="map">{"Critical": 0xDC4E41, "High": 0xF1813F, "Medium": 0xF8BE34, "Low": 0x53A051}</colorPalette>
-        </format>
-        <format type="color" field="Hits">
-          <colorPalette type="minMidMax" maxColor="0xDC4E41" midColor="0xF8BE34" minColor="0x53A051"></colorPalette>
         </format>
       </table>
     </panel>
@@ -365,6 +354,7 @@
                      location       as "Location"
                      adversary      as "Threat Actor"
                      severity       as "Severity"
+            | table "IP" "Severity" "Hits" "Affected Hosts" "Last Seen" "Location" "Threat Actor"
             | head 50
           </query>
           <earliest>$time_range.earliest$</earliest>
@@ -375,9 +365,6 @@
         <option name="refresh.display">progressbar</option>
         <format type="color" field="Severity">
           <colorPalette type="map">{"Critical": 0xDC4E41, "High": 0xF1813F, "Medium": 0xF8BE34, "Low": 0x53A051}</colorPalette>
-        </format>
-        <format type="color" field="Hits">
-          <colorPalette type="minMidMax" maxColor="0xDC4E41" midColor="0xF8BE34" minColor="0x53A051"></colorPalette>
         </format>
       </table>
     </panel>
@@ -456,9 +443,6 @@
         <format type="color" field="Severity">
           <colorPalette type="map">{"Critical": 0xDC4E41, "High": 0xF1813F, "Medium": 0xF8BE34, "Low": 0x53A051}</colorPalette>
         </format>
-        <format type="color" field="Hits">
-          <colorPalette type="minMidMax" maxColor="0xDC4E41" midColor="0xF8BE34" minColor="0x53A051"></colorPalette>
-        </format>
       </table>
     </panel>
   </row>
@@ -504,17 +488,19 @@
             | rename attack_ids{} as technique_id
             | where technique_id!="" AND technique_id!="null"
             | stats min(_time) as first_seen count as pulse_count values(adversary) as adversary by technique_id
-            | eval severity=case(pulse_count&gt;20,"Critical",pulse_count&gt;10,"High",pulse_count&gt;5,"Medium",true(),"Low"),
+            | eval severity=case(pulse_count&gt;=19,"Critical",pulse_count&gt;=14,"High",pulse_count&gt;=7,"Medium",true(),"Low"),
                    _sev_sort=case(severity="Critical","1",severity="High","2",severity="Medium","3",true(),"4"),
                    first_seen=strftime(first_seen,"%Y-%m-%d %H:%M"),
                    adversary=if(adversary="","Unknown",adversary)
-            | sort _sev_sort - first_seen
+            | sort _sev_sort - pulse_count
             | fields - _sev_sort
             | rename technique_id as "Technique ID"
                      first_seen   as "First Seen"
                      pulse_count  as "Pulse Count"
                      severity     as "Severity"
                      adversary    as "Adversary"
+            | table "Technique ID" "Severity" "First Seen" "Pulse Count" "Adversary"
+
           </query>
           <earliest>-7d</earliest>
           <latest>now</latest>
@@ -523,9 +509,6 @@
         <option name="wrap">true</option>
         <format type="color" field="Severity">
           <colorPalette type="map">{"Critical": 0xDC4E41, "High": 0xF1813F, "Medium": 0xF8BE34, "Low": 0x53A051}</colorPalette>
-        </format>
-        <format type="color" field="Pulse Count">
-          <colorPalette type="minMidMax" maxColor="0xDC4E41" midColor="0xF8BE34" minColor="0x53A051"></colorPalette>
         </format>
       </table>
     </panel>
@@ -589,12 +572,6 @@
         <format type="color" field="Severity">
           <colorPalette type="map">{"Critical": 0xDC4E41, "High": 0xF1813F, "Medium": 0xF8BE34, "Low": 0x53A051, "None": 0x555555}</colorPalette>
         </format>
-        <format type="color" field="Total Hits">
-          <colorPalette type="minMidMax" maxColor="0xDC4E41" midColor="0xF8BE34" minColor="0x53A051"></colorPalette>
-        </format>
-        <format type="color" field="Unique Actors">
-          <colorPalette type="minMidMax" maxColor="0xDC4E41" midColor="0xF8BE34" minColor="0x53A051"></colorPalette>
-        </format>
       </table>
     </panel>
   </row>
@@ -625,9 +602,6 @@
         <option name="refresh.display">progressbar</option>
         <format type="color" field="Status">
           <colorPalette type="map">{"Healthy": 0x53A051, "Stale": 0xDC4E41}</colorPalette>
-        </format>
-        <format type="color" field="Minutes Since Last Ingest">
-          <colorPalette type="minMidMax" maxColor="0xDC4E41" midColor="0xF8BE34" minColor="0x53A051"></colorPalette>
         </format>
       </table>
     </panel>
