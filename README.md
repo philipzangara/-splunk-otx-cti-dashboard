@@ -1,6 +1,6 @@
 # Splunk OTX CTI Dashboard
 
-A Splunk Classic Dashboard that visualizes Cyber Threat Intelligence (CTI) data from AlienVault Open Threat Exchange (OTX). Built as part of the ECA Cyber Range Splunk Security Dashboard Challenge to demonstrate real-time threat intelligence ingestion, environment correlation, and visualization using Splunk.
+A Splunk Classic Dashboard that correlates live AlienVault OTX threat intelligence against Sysmon endpoint telemetry to surface active threats in your environment. Built for the ECA Cyber Range Splunk Security Dashboard Challenge.
 
 ---
 
@@ -8,7 +8,7 @@ A Splunk Classic Dashboard that visualizes Cyber Threat Intelligence (CTI) data 
 
 This dashboard answers one core question a SOC analyst asks every shift: **is threat intelligence from the outside world actively hitting my environment right now?**
 
-It does this by joining live Sysmon telemetry from your Windows endpoints against malicious indicators and adversary TTPs from AlienVault OTX. Surfacing not just what threats exist globally, but which ones your machines are actually talking to.
+It joins live Sysmon telemetry from Windows endpoints against malicious indicators and adversary TTPs from AlienVault OTX. Surfacing not just what threats exist globally, but which ones your machines are actually talking to.
 
 ---
 
@@ -16,13 +16,11 @@ It does this by joining live Sysmon telemetry from your Windows endpoints agains
 
 - **15 dashboard panels** across 8 rows covering the full CTI lifecycle
 - **Live threat data** powered by AlienVault OTX via the TA-otx Splunk Add-on
-- **Dynamic filters** — time range picker, IOC type dropdown, and threat actor dropdown that affect all panels simultaneously
-- **IOC type filter** — selecting IPv4, domain, or hash type filters all relevant IOC panels simultaneously; unrelated panels return no results
-- **MITRE ATT&CK TTP tracking** — frequency and trend analysis of adversary techniques across all 14 tactics
-- **IOC visibility** — malicious IPs, domains, and file hashes (SHA256) correlated against live Sysmon telemetry
+- **Dynamic filters** — time range picker, IOC type dropdown, and threat actor dropdown affecting all panels simultaneously
+- **IOC type filter** — selecting IPv4, domain, or hash type filters all relevant IOC panels; unrelated panels return no results
+- **MITRE ATT&CK TTP tracking** — technique frequency across all 14 tactics correlated against live endpoint data
 - **Geographic intelligence** — bubble map of malicious IP hits with country and IP-level drill-down tables
-- **Environment correlation** — every IOC panel joins OTX indicators against Sysmon events so results reflect actual activity in your environment, not just the global feed
-- **Feed health monitoring** — tracks OTX ingestion status and data staleness
+- **Environment correlation** — every IOC panel joins OTX indicators against Sysmon events so results reflect actual activity in your environment
 
 ---
 
@@ -57,7 +55,7 @@ It does this by joining live Sysmon telemetry from your Windows endpoints agains
 | Critical TTPs in Environment | How many adversary techniques seen in OTX pulses are firing at high volume in my Sysmon logs? |
 | Malicious IPs Detected | How many OTX-flagged IPs did my environment connect to in the last 24 hours? |
 | Unique Source Countries | How many countries are malicious connections originating from? |
-| OTX Threat Intel - TTPs Active in Environment | Which specific MITRE techniques are both in OTX intelligence and actively observed in my Sysmon data? |
+| TTPs Active in Environment | Which MITRE techniques are both in OTX intelligence and actively observed in my Sysmon data? |
 | Malicious IP Hits by Location | Where geographically are the malicious IPs hitting my environment located? |
 | Top Countries by Hit Count | Which countries are responsible for the most malicious connection attempts? |
 | Top Malicious IPs | Which specific IPs are hitting my environment most frequently and who do they belong to? |
@@ -103,10 +101,8 @@ Index Type: Events
 ### 4. Import the dashboard
 - Go to Settings → User Interface → Views → Create New View
 - Select Dashboard (Classic) and paste the contents of `splunk-otx-cti-dashboard.xml`
-- Or navigate to any existing dashboard → Edit → Source and replace with the XML
 
 ### 5. Verify data is flowing
-Run this search after enabling the input and waiting a few minutes:
 ```
 index=otx | stats count by sourcetype
 ```
@@ -119,7 +115,7 @@ You should see `otx:indicator` and `otx:pulse` with non-zero counts.
 | Filter | Description |
 |--------|-------------|
 | Time Range | Controls the time window for all panels |
-| IOC Type | Filters all IOC panels by type (IPv4, domain, URL, hash) — selecting a type hides unrelated IOC panels |
+| IOC Type | Filters all IOC panels by type — selecting a type hides unrelated panels |
 | Threat Actor | Filters pulse and TTP panels by attributed adversary |
 
 ---
@@ -140,19 +136,19 @@ You should see `otx:indicator` and `otx:pulse` with non-zero counts.
 
 ## Known Issues
 
-- Fields with `{}` notation (e.g. `attack_ids{}`) may show a yellow warning icon or a `[subsearch]: Field does not exist` error — this is cosmetic and does not affect results. Splunk's schema validator does not recognize the `{}` multi-value field notation used by TA-otx, even though the fields are correctly populated at search time
-- The Threat Actor dropdown will only populate once OTX pulses with attributed adversaries have been ingested
-- The Domain Hits panel uses a fixed 7-day window and the Feed Health panel uses a fixed 24-hour window, regardless of the time range picker setting
-- The IOC Type filter does not affect the TTP panels — TTP correlation is based on Sysmon event codes and OTX pulse data, not OTX indicator types
-- The map requires outbound HTTPS to `basemaps.cartocdn.com` for the dark tile layer. If your environment is air-gapped, remove the `mapping.tileLayer.url` and `mapping.tileLayer.attribution` options to fall back to Splunk's default tiles
-- This dashboard is **Windows-only**. All environment correlation panels are built around Sysmon event codes and field names (`EventCode`, `Hashes`, `QueryName`, `DestinationIp`, `Image`) that are specific to the Sysmon schema. Linux hosts forwarding `/var/log` to Splunk will not appear in any panel. Linux support would require either dedicated panels built against auditd/syslog fields, or normalizing all endpoint data to Splunk's Common Information Model (CIM)
+- Fields with `{}` notation (e.g. `attack_ids{}`) may show a yellow warning icon in Splunk — this is cosmetic and does not affect results
+- The Threat Actor dropdown only populates once OTX pulses with attributed adversaries have been ingested
+- The Domain Hits panel uses a fixed 7-day window regardless of the time range picker
+- The IOC Type filter does not affect TTP panels — TTP correlation is based on Sysmon event codes, not OTX indicator types
+- The map requires outbound HTTPS to `basemaps.cartocdn.com` for the dark tile layer — remove the `tileLayer` options to fall back to Splunk's default tiles if air-gapped
+- `iplocation` uses Splunk's bundled MaxMind GeoLite2 database — RFC1918 addresses will not resolve and are excluded from the map
+- This dashboard is **Windows-only** — Linux hosts forwarding `/var/log` will not appear in any panel. Linux support would require panels built against auditd/syslog fields or normalization to Splunk's Common Information Model (CIM)
 
 ---
 
 ## Technical Notes
 
 - OTX data is stored in two sourcetypes: `otx:pulse` (pulse metadata) and `otx:indicator` (individual IOCs)
-- Multi-value fields from the OTX API are stored with `{}` suffix notation (e.g. `attack_ids{}`)
 - The TA-otx add-on requires OpenSSL 1.0 — on Ubuntu 24.04 install via:
 
 ```bash
@@ -166,66 +162,39 @@ sudo dpkg -i libssl1.0.0_1.0.2n-1ubuntu5_amd64.deb
 
 ## Production Considerations
 
-This project uses the community-built **TA-otx** add-on which polls the OTX API on a scheduled interval. While functional for a lab or portfolio environment, a production CTI deployment would differ in several important ways.
+This project uses the community-built **TA-otx** add-on which polls the OTX API hourly. A production CTI deployment would differ in several ways.
 
 ### Real-time indicator ingestion
 
-The TA-otx add-on uses a checkpoint-based polling mechanism — it tracks the last poll timestamp and requests pulses modified since that time. New indicators can take up to an hour to appear depending on the configured interval, and the checkpoint can become stale after restarts or clock drift.
+In production, polling would be replaced with:
 
-In a production environment this would be replaced with:
-
-- **Splunk Enterprise Security (ES)** — includes a native Threat Intelligence framework with a dedicated REST API that accepts indicators in real time, no polling required
-- **TAXII 2.1** — the industry standard protocol for threat intel sharing. OTX supports TAXII and Splunk ES has a built-in TAXII client that receives indicator pushes the moment they are published
+- **Splunk Enterprise Security (ES)** — native Threat Intelligence framework with real-time REST API ingestion
+- **TAXII 2.1** — OTX supports TAXII and Splunk ES has a built-in client that receives indicator pushes in real time
 - **STIX 2.1** — the structured data format used with TAXII, providing richer context including relationships between indicators, threat actors, and campaigns
 
-### What this would look like in production
+### Indicator confidence and criticality scoring
 
-```
-OTX publishes new pulse
-        ↓
-TAXII 2.1 push (seconds)
-        ↓
-Splunk ES Threat Intelligence framework
-        ↓
-Automatic correlation against all indexes
-        ↓
-Real-time alerts and dashboard updates
-```
+OTX does not provide reliable criticality scores on individual indicators. This dashboard uses pulse count as a severity proxy. In production this would be replaced with commercial feeds that provide per-indicator scoring:
+
+- **Recorded Future** — risk scores per IP, domain, and hash
+- **ThreatConnect** — confidence-scored indicators with source reliability weighting
+- **VirusTotal Enterprise** — detection ratios and community scores per file hash and URL
+
+### MITRE ATT&CK tactic mapping
+
+The framework panel uses a hardcoded `case` statement mapping technique IDs to tactics. In production this would be replaced with Splunk ES's maintained `mitre_attack_lookup`, or the community [MITRE ATT&CK App for Splunk](https://splunkbase.splunk.com/app/4617) for non-ES deployments.
 
 ### Other production improvements
-
 - Automated indicator expiration and lifecycle management
 - Multi-feed deduplication and confidence scoring
 - Integration with SOAR platforms (Splunk SOAR, Palo Alto XSOAR) for automated response
 - Role-based access control for sensitive threat intel
 
-### Indicator confidence and criticality scoring
-
-OTX does not provide a reliable criticality score on individual indicators or pulses — the `adversary_threat_level` field exists in the API but is inconsistently populated by community contributors and cannot be depended on to drive severity logic. This dashboard uses OTX pulse count as a proxy for severity, reflecting how broadly a technique is referenced across the threat intelligence community.
-
-In a production deployment this would be replaced with a commercial feed that provides per-indicator confidence and severity scores:
-
-- **Recorded Future** — risk scores per IP, domain, and hash based on real-time intelligence
-- **ThreatConnect** — confidence-scored indicators with source reliability weighting
-- **VirusTotal Enterprise** — detection ratios and community scores per file hash and URL
-
-These scores can be ingested directly into Splunk and used to drive severity coloring and alerting thresholds with much higher fidelity than pulse count alone.
-
-The MITRE ATT&CK Framework panel uses a hardcoded `case` statement to map technique IDs to their corresponding tactics across all 14 tactic categories. This is correct behavior — the mapping is defined by the MITRE ATT&CK framework itself and is not environment-specific. However it requires manual updates when MITRE releases new framework versions.
-
-In a production deployment this would be replaced with a maintained lookup table:
-
-```spl
-| lookup mitre_attack_lookup technique_id OUTPUT tactic
-```
-
-Splunk Enterprise Security ships with a `mitre_attack_lookup` that is automatically updated with each ES release. The community add-on [MITRE ATT&CK App for Splunk](https://splunkbase.splunk.com/app/4617) also provides this lookup for non-ES deployments.
-
 ---
 
 ## Test Data
 
-The Sysmon environment correlation panels were validated using [Atomic Red Team](https://github.com/redcanaryco/atomic-red-team) by Red Canary. Atomic tests were executed via the [Invoke-AtomicRedTeam](https://github.com/redcanaryco/invoke-atomicredteam) PowerShell framework to simulate adversary techniques mapped to MITRE ATT&CK — generating realistic Sysmon telemetry (process creation, network connections, DNS queries, file activity) that matches the IOC and TTP patterns ingested from OTX. This allowed the dashboard joins, correlation logic, and severity thresholds to be tested against representative malicious activity rather than a clean environment.
+The environment correlation panels were validated using [Atomic Red Team](https://github.com/redcanaryco/atomic-red-team) by Red Canary. Tests were executed via [Invoke-AtomicRedTeam](https://github.com/redcanaryco/invoke-atomicredteam) to simulate adversary techniques mapped to MITRE ATT&CK, generating realistic Sysmon telemetry to validate the dashboard joins, correlation logic, and severity thresholds.
 
 ---
 
@@ -234,8 +203,8 @@ The Sysmon environment correlation panels were validated using [Atomic Red Team]
 - [AlienVault OTX](https://otx.alienvault.com) for the threat intelligence platform and API
 - [Luke Monahan](https://splunkbase.splunk.com/app/4336) for the TA-otx Splunk Add-on
 - [MITRE ATT&CK](https://attack.mitre.org) for the adversary technique framework
-- [Red Canary](https://github.com/redcanaryco/atomic-red-team) for Atomic Red Team adversary simulation tests
-- [ECA Cyber Range](https://www.skool.com/eca-cyber-range-4625/about?ref=176bfcb7a0794bdfbd3403e5ed04ac73) for the Splunk Security Dashboard Challenge
+- [Red Canary]([https://redcanary.com](https://github.com/redcanaryco/atomic-red-team) for Atomic Red Team adversary simulation tests
+- [ECA Cyber Range]([https://ellingtoncyber.com](https://www.skool.com/eca-cyber-range-4625/about?ref=176bfcb7a0794bdfbd3403e5ed04ac73) for the Splunk Security Dashboard Challenge
 
 ---
 
