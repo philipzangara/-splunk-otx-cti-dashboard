@@ -143,6 +143,7 @@ You should see `otx:indicator` and `otx:pulse` with non-zero counts.
 - The map requires outbound HTTPS to `basemaps.cartocdn.com` for the dark tile layer — remove the `tileLayer` options to fall back to Splunk's default tiles if air-gapped
 - `iplocation` uses Splunk's bundled MaxMind GeoLite2 database — RFC1918 addresses will not resolve and are excluded from the map
 - This dashboard is **Windows-only** — Linux hosts forwarding `/var/log` will not appear in any panel. Linux support would require panels built against auditd/syslog fields or normalization to Splunk's Common Information Model (CIM)
+- "The Feed Health panel (OTX Feed Health — Last Ingest Times) has been removed from the final dashboard submission. This panel displays the last ingest timestamp for each OTX data source and is dependent on a fully configured and active TA-otx ingest pipeline. In environments where the ingest has not completed a full cycle the panel returns empty or stale results which misrepresents the dashboard's operational state. The panel XML is preserved in the source file and can be re-added by uncommenting the relevant row block at the bottom of splunk-otx-cti-dashboard.xml."
 
 ---
 
